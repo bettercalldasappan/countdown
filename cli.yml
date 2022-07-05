@@ -16,3 +16,9 @@ args:
       takes_value: true
       multiple: false
       help: Max number of events to display.
+  - lo:
+      short: lo
+      long: lo
+      takes_value: true
+      multiple: false
+      help: Do Max number of events to display Best.
