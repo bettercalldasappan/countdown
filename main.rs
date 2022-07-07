@@ -1,9 +1,10 @@
 use clap::{ArgGroup, Parser, PossibleValue, Subcommand};
 
-use confy::ConfyError;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::convert::TryFrom;
+use std::fs::OpenOptions;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -90,18 +91,18 @@ enum ESubCommands {
     /// Add new events
     AddEvent {
         /// Name of event
-        #[clap(short, long)]
+        #[clap(short, long = "event")]
         event: String,
 
-        /// Date of event
-        #[clap(short, long)]
+        /// Date of event in Unix Timestamp"
+        #[clap(short, long = "date")]
         date: u32,
     },
 }
 
 /// Countdown to events you're looking forward to
 #[derive(Parser)]
-#[clap(author)]
+#[clap(author, version, about)]
 #[clap(group(
   ArgGroup::new("options")
       .required(false)
@@ -135,31 +136,83 @@ fn main() {
         .ok_or_else(|| "Failed to find home".to_string())
         .map(|home| home.join(Path::new(CONFIG_FILENAME)));
 
-    if let Some(ESubCommands::AddEvent { event, date }) = &cli_matches.sub {
-        let add_event = CountdownConfig {
-            events: vec![Event {
-                name: event.to_owned(),
-                time: date.to_owned(),
-            }],
-        };
-        confy::store_path(config_file.unwrap(), add_event).expect("msg");
-    }
-    let result: Result<Vec<FutureEvent>, String> = dirs::home_dir()
-        .ok_or_else(|| "Failed to find home directory.".to_string())
-        .map(|home| home.join(Path::new(CONFIG_FILENAME)))
-        .and_then(|config_file| {
-            confy::load_path(config_file)
-                .map_err(|e| format!("Couldn't load config: {:?}", e).to_string())
-        })
-        .and_then(|config: CountdownConfig| {
-            Ok(applicable_events(now, config.events, &cli_matches))
-        });
+    match config_file {
+        Ok(config_file) => {
+            if let Some(ESubCommands::AddEvent { event, date }) = &cli_matches.sub {
+                let add_event = CountdownConfig {
+                    events: vec![Event {
+                        name: event.to_owned(),
+                        time: date.to_owned(),
+                    }],
+                };
+                match write_configs(&config_file, add_event) {
+                    Ok(_) => println!("Added!"),
+                    Err(s) => println!("{}", s),
+                }
+            } else {
+                let result = read_configs(&config_file)
+                    .and_then(|s| Ok(applicable_events(now, s.events, &cli_matches)));
 
-    match result {
-        Ok(events) => events
-            .iter()
-            .for_each(|ev| println!("{} days until {}", ev.days_left, ev.name)),
-        Err(e) => eprintln!("{:?}", e),
+                match result {
+                    Ok(events) => events
+                        .iter()
+                        .for_each(|ev| println!("{} days until {}", ev.days_left, ev.name)),
+                    Err(e) => eprintln!("{:?}", e),
+                }
+            }
+        }
+        Err(e) => eprintln!("{}", e),
+    }
+}
+
+fn write_configs(config_file: &PathBuf, event: CountdownConfig) -> Result<(), String> {
+    let result = match toml::to_string_pretty(&event) {
+        Ok(pretty_toml) => {
+            let file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .append(true)
+                .open(config_file);
+
+            let result: Result<(), String> = file
+                .map_err(|e| String::from(e.to_string()))
+                .and_then(|mut file| {
+                    file.write(&pretty_toml.as_bytes())
+                        .map_err(|_| String::from(""))
+                        .and_then(|_| Ok(()))
+                });
+
+            result
+        }
+        _ => Err(String::from("parsing to toml string failed")),
+    };
+    result
+}
+
+fn read_configs(config_file: &PathBuf) -> Result<CountdownConfig, String> {
+    if Path::new(config_file).exists() {
+        let mut buf = String::new();
+
+        let file = OpenOptions::new().read(true).open(config_file);
+
+        let result: Result<CountdownConfig, String> = match file {
+            Ok(mut file) => file
+                .read_to_string(&mut buf)
+                .map_err(|e| String::from(e.to_string()))
+                .and_then(|_| {
+                    if buf.is_empty() {
+                        Err(String::from("No Entires"))
+                    } else {
+                        toml::from_str::<CountdownConfig>(&buf)
+                            .map_err(|te| String::from(te.to_string()))
+                    }
+                }),
+            Err(e) => Err(format!("File | Error {}", e.to_string())),
+        };
+
+        result
+    } else {
+        Err(String::from("No Entires"))
     }
 }
 
@@ -219,6 +272,8 @@ fn applicable_events(
 
 #[cfg(test)]
 mod tests {
+    use serde::Deserialize;
+
     use super::*;
 
     // Event
@@ -370,6 +425,75 @@ mod tests {
                     days_left: 543
                 },
             ],
+        );
+    }
+
+    #[test]
+    fn test_sample_toml() {
+        #[derive(Deserialize)]
+        struct Config {
+            ip: String,
+            port: Option<u16>,
+            keys: Keys,
+        }
+
+        #[derive(Deserialize)]
+        struct Keys {
+            github: String,
+            travis: Option<String>,
+        }
+
+        let config: Config = toml::from_str(
+            r#"
+        ip = '127.0.0.1'
+
+        [keys]
+        github = 'xxxxxxxxxxxxxxxxx'
+        travis = 'yyyyyyyyyyyyyyyyy'
+    "#,
+        )
+        .unwrap();
+
+        assert_eq!(config.ip, "127.0.0.1");
+        assert_eq!(config.port, None);
+        assert_eq!(config.keys.github, "xxxxxxxxxxxxxxxxx");
+        assert_eq!(config.keys.travis.as_ref().unwrap(), "yyyyyyyyyyyyyyyyy");
+    }
+
+    #[test]
+    fn test_inside_toml() {
+        let event = Event {
+            name: "String".to_string(),
+            time: 12312312,
+        };
+        let event1 = Event {
+            name: "String".to_string(),
+            time: 12312312,
+        };
+        let c = CountdownConfig {
+            events: vec![event, event1],
+        };
+
+        let config: CountdownConfig = toml::from_str(
+            r#"
+        [[events]]
+        name = 'String'
+        time = 12312312
+        
+        [[events]]
+        name = 'String'
+        time = 12312312
+    "#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            toml::to_string(&config.events[0]).unwrap(),
+            r#"
+            [[events]]
+            name = 'String'
+            time = 12312312
+        "#,
         );
     }
 }
