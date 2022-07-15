@@ -18,6 +18,8 @@ dirs = "4.0.0"
 rand = "0.8.5"
 serde = { version = "1.0.138", features = ["derive"] }
 toml = "0.5.9"
+chrono = "0.4.19"
+
 
 [[bin]]
 name = "countdown"

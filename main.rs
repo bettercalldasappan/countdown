@@ -1,3 +1,4 @@
+use chrono::NaiveDate;
 use clap::{ArgGroup, Parser, PossibleValue, Subcommand};
 
 use rand::seq::SliceRandom;
@@ -94,9 +95,9 @@ enum ESubCommands {
         #[clap(short, long = "event")]
         event: String,
 
-        /// Date of event in Unix Timestamp"
+        /// Date of event in <dd>-<mm>-<yyyy> ex: 21-3-2133
         #[clap(short, long = "date")]
-        date: u32,
+        date: String,
     },
 }
 
@@ -138,16 +139,27 @@ fn main() {
 
     match config_file {
         Ok(config_file) => {
+            // If its Subcommand
             if let Some(ESubCommands::AddEvent { event, date }) = &cli_matches.sub {
-                let add_event = CountdownConfig {
-                    events: vec![Event {
-                        name: event.to_owned(),
-                        time: date.to_owned(),
-                    }],
-                };
-                match write_configs(&config_file, add_event) {
-                    Ok(_) => println!("Added!"),
-                    Err(s) => println!("{}", s),
+                // Validate date
+                // validate with chrono from string
+                match NaiveDate::parse_from_str(date, "%d-%m-%Y") {
+                    Ok(n_date) => {
+                        let unix_time = n_date.and_hms(0, 0, 0).timestamp();
+                        let add_event = CountdownConfig {
+                            events: vec![Event {
+                                name: event.to_owned(),
+                                time: unix_time as u32,
+                            }],
+                        };
+                        match write_configs(&config_file, add_event) {
+                            Ok(_) => println!("Added!"),
+                            Err(s) => println!("{}", s),
+                        }
+                    }
+                    Err(_) => {
+                        eprintln!("Date string in wrong format");
+                    }
                 }
             } else {
                 let result = read_configs(&config_file)
