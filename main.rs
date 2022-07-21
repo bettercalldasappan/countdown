@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const SECONDS_IN_DAY: u64 = 86400;
-const CONFIG_FILENAME: &str = ".test-countdown.toml";
+const CONFIG_FILENAME: &str = ".config/countdown/countdown.toml";
 const ARG_ORDER_SHUFFLE: &str = "shuffle";
 const ARG_ORDER_TIME_DESC: &str = "time-desc";
 const ARG_ORDER_TIME_ASC: &str = "time-asc";
@@ -224,7 +224,7 @@ fn read_configs(config_file: &PathBuf) -> Result<CountdownConfig, String> {
 
         result
     } else {
-        Err(String::from("No Entires"))
+        Err(String::from("No Entires!. Please add events first"))
     }
 }
 
