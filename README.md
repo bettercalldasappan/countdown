@@ -14,35 +14,28 @@ fly whenever you need some encouragement for the week.
 
 ```text
 USAGE:
-    countdown [OPTIONS]
-
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
+    countdown [OPTIONS] [SUBCOMMAND]
 
 OPTIONS:
-    -n, --n <n>            Max number of events to display.
-    -o, --order <order>    Specify the ordering of the events returned [possible values: shuffle, time-asc, time-desc]
+    -h, --help             Print help information
+    -n, --n <N>            Max number of events to display
+    -o, --order <ORDER>    Specify the ordering of the events returned [possible values: shuffle,
+                           time-asc, time-desc]
+    -V, --version          Print version information
+
+SUBCOMMANDS:
+    add-event    Add new events
+    help         Print this message or the help of the given subcommand(s)
+
+
+Add new events
+
+USAGE:
+    countdown add-event --event <EVENT> --date <DATE>
+
+OPTIONS:
+    -d, --date <DATE>      Date of event in <dd>-<mm>-<yyyy> ex: 21-3-2133
+    -e, --event <EVENT>    Name of event
+    -h, --help             Print help information
 ```
 
-## Setup & Installation
-
-1. Install with `cargo install event-countdown`
-
-2. Before running, create a `.countdown.toml` file in your home directory containing a list of events you'd like to track. Here's an example with dates far into the future (as of 2021 😄):
-
-  ```toml
-  [[events]]
-  name = "summer break"
-  time = 1892160000 # these are unix timestamps in seconds
-
-  [[events]]
-  name = "wwdc"
-  time = 1892250000
-
-  [[events]]
-  name = "memorial day weekend"
-  time = 1892170000
-  ```
-
-3. Now run `countdown` in your shell and you're all set 🎉

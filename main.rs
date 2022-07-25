@@ -284,7 +284,10 @@ fn applicable_events(
 
 #[cfg(test)]
 mod tests {
-    use serde::Deserialize;
+
+    use std::str::FromStr;
+
+    use chrono::DateTime;
 
     use super::*;
 
@@ -441,38 +444,6 @@ mod tests {
     }
 
     #[test]
-    fn test_sample_toml() {
-        #[derive(Deserialize)]
-        struct Config {
-            ip: String,
-            port: Option<u16>,
-            keys: Keys,
-        }
-
-        #[derive(Deserialize)]
-        struct Keys {
-            github: String,
-            travis: Option<String>,
-        }
-
-        let config: Config = toml::from_str(
-            r#"
-        ip = '127.0.0.1'
-
-        [keys]
-        github = 'xxxxxxxxxxxxxxxxx'
-        travis = 'yyyyyyyyyyyyyyyyy'
-    "#,
-        )
-        .unwrap();
-
-        assert_eq!(config.ip, "127.0.0.1");
-        assert_eq!(config.port, None);
-        assert_eq!(config.keys.github, "xxxxxxxxxxxxxxxxx");
-        assert_eq!(config.keys.travis.as_ref().unwrap(), "yyyyyyyyyyyyyyyyy");
-    }
-
-    #[test]
     fn test_inside_toml() {
         let event = Event {
             name: "String".to_string(),
@@ -507,5 +478,16 @@ mod tests {
             time = 12312312
         "#,
         );
+    }
+
+    #[test]
+    fn string_to_date() {
+        let output_q = "2-3-2102";
+
+        // let expected = DateTime::
+
+        let output = NaiveDate::parse_from_str(output_q, "%d-%m-%Y").unwrap();
+
+        assert_ne!(output, NaiveDate::from_ymd(2102, 2, 3));
     }
 }
